@@ -1,13 +1,56 @@
-// Update this page (the content is just a fallback if you fail to update the page)
+import { useState } from "react";
+import LandingHero from "@/components/LandingHero";
+import DocumentUploader from "@/components/DocumentUploader";
+import DocumentAnalyzer from "@/components/DocumentAnalyzer";
+
+type AppState = "landing" | "upload" | "analyze";
 
 const Index = () => {
+  const [currentState, setCurrentState] = useState<AppState>("landing");
+  const [documentContent, setDocumentContent] = useState<string>("");
+  const [documentFileName, setDocumentFileName] = useState<string>("");
+
+  const handleGetStarted = () => {
+    setCurrentState("upload");
+  };
+
+  const handleDocumentProcess = (content: string, fileName?: string) => {
+    setDocumentContent(content);
+    setDocumentFileName(fileName || "");
+    setCurrentState("analyze");
+  };
+
+  const handleBackToHome = () => {
+    setCurrentState("landing");
+    setDocumentContent("");
+    setDocumentFileName("");
+  };
+
+  const handleBackToUpload = () => {
+    setCurrentState("upload");
+  };
+
+  if (currentState === "analyze") {
+    return (
+      <DocumentAnalyzer 
+        content={documentContent}
+        fileName={documentFileName}
+        onBack={handleBackToUpload}
+      />
+    );
+  }
+
+  if (currentState === "upload") {
+    return (
+      <DocumentUploader 
+        onDocumentProcess={handleDocumentProcess}
+        onBack={handleBackToHome}
+      />
+    );
+  }
+
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background">
-      <div className="text-center">
-        <h1 className="mb-4 text-4xl font-bold">Welcome to Your Blank App</h1>
-        <p className="text-xl text-muted-foreground">Start building your amazing project here!</p>
-      </div>
-    </div>
+    <LandingHero onGetStarted={handleGetStarted} />
   );
 };
 
