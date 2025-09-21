@@ -1,73 +1,61 @@
-# Welcome to your Lovable project
+# LawSimple — AI Document Explainer
 
-## Project info
+**Solo project by Pranav Kamalakar** — Prototype for GenAI Exchange Hackathon
 
-**URL**: https://lovable.dev/projects/b5157198-322f-4499-a899-4e3798cbbf39
+**One-liner:** Upload or paste legal text and get plain-language summaries, clause explanations, and red-flag highlights. Prototype live on a Lovable domain.
 
-## How can I edit this code?
+> ⚠️ Prototype status: **Working prototype (text-input summarizer only)**. OCR, PDF uploads, and multilingual support are planned for the final submission.
 
-There are several ways of editing your application.
+---
 
-**Use Lovable**
+## Demo & Links
+- **Lovable App (prototype):** `{{Lovable App URL}}`  
+- **Demo video:** `{{Demo Video URL}}`  
+- **Repo:** `{{Code Repo URL}}`
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/b5157198-322f-4499-a899-4e3798cbbf39) and start prompting.
+> Replace placeholders above before final submission.
 
-Changes made via Lovable will be committed automatically to this repo.
+---
 
-**Use your preferred IDE**
+## What it does (short)
+LawSimple converts legal text into a simple, plain-language summary and highlights important clauses (e.g., penalties, obligations). The goal is to make contracts and legal documents accessible to non-experts (students, startups, individuals).
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+---
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+## Current features (prototype)
+- Paste legal text → get a plain-language summary (English)
+- Deployed on a Lovable domain for live demo
 
-Follow these steps:
+---
 
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
+## Planned (for final demo)
+- Multilingual summaries (English, Hindi, Marathi)  
+- OCR for images/scanned PDFs (Tesseract.js / cloud fallback)  
+- Full PDF upload & parsing  
+- Clause extraction & red-flag tagging  
+- Download summary (TXT/PDF)
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
+---
 
-# Step 3: Install the necessary dependencies.
-npm i
+## Quick judge testing steps
+1. Open `{{Lovable App URL}}`  
+2. Paste this sample text:
+   > “The lessee shall maintain insurance and pay all taxes. Failure to comply will result in a penalty of 5% monthly.”
+3. Click **Summarize** → expect a plain-language summary in ~5–15s.  
+4. Check for highlighted clause(s) and risk tags.  
+5. (Optional) Download the summary if the button is available.
 
-# Step 4: Start the development server with auto-reloading and an instant preview.
-npm run dev
-```
+---
 
-**Edit a file directly in GitHub**
+## Submission checklist
+- [ ] Lovable App URL replaced  
+- [ ] Demo video link added  
+- [ ] README placeholders filled  
+- [ ] Short demo prepared (1-minute script)
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+---
 
-**Use GitHub Codespaces**
+## Contact
+Pranav Kamalakar — Solo (Team: LawSimple)
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
 
-## What technologies are used for this project?
-
-This project is built with:
-
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
-
-## How can I deploy this project?
-
-Simply open [Lovable](https://lovable.dev/projects/b5157198-322f-4499-a899-4e3798cbbf39) and click on Share -> Publish.
-
-## Can I connect a custom domain to my Lovable project?
-
-Yes, you can!
-
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
-
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
