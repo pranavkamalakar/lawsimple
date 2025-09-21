@@ -2,8 +2,9 @@ import { useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
-import { Upload, FileText, X, File, Zap } from "lucide-react";
+import { Upload, FileText, X, File, Zap, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import * as pdfjsLib from 'pdfjs-dist';
 
 interface DocumentUploaderProps {
   onDocumentProcess: (content: string, fileName?: string) => void;
@@ -14,8 +15,12 @@ const DocumentUploader = ({ onDocumentProcess, onBack }: DocumentUploaderProps) 
   const [dragActive, setDragActive] = useState(false);
   const [textInput, setTextInput] = useState("");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [isProcessingPDF, setIsProcessingPDF] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
+
+  // Configure PDF.js worker
+  pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
 
   // Sample documents for quick demo
   const sampleDocuments = [
@@ -136,9 +141,27 @@ By signing below, both parties agree to be bound by the terms of this Lease Agre
     }
   };
 
-  const handleFileSelect = (file: File) => {
+  const extractTextFromPDF = async (file: File): Promise<string> => {
+    const arrayBuffer = await file.arrayBuffer();
+    const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+    let textContent = '';
+    
+    for (let i = 1; i <= pdf.numPages; i++) {
+      const page = await pdf.getPage(i);
+      const content = await page.getTextContent();
+      const pageText = content.items
+        .map((item: any) => item.str)
+        .join(' ');
+      textContent += pageText + '\n\n';
+    }
+    
+    return textContent.trim();
+  };
+
+  const handleFileSelect = async (file: File) => {
     if (file.type === "application/pdf" || file.type === "text/plain") {
       setSelectedFile(file);
+      
       if (file.type === "text/plain") {
         const reader = new FileReader();
         reader.onload = (e) => {
@@ -147,6 +170,25 @@ By signing below, both parties agree to be bound by the terms of this Lease Agre
           }
         };
         reader.readAsText(file);
+      } else if (file.type === "application/pdf") {
+        setIsProcessingPDF(true);
+        try {
+          const extractedText = await extractTextFromPDF(file);
+          setTextInput(extractedText);
+          toast({
+            title: "PDF Processed",
+            description: "Text successfully extracted from PDF.",
+          });
+        } catch (error) {
+          console.error('Error extracting PDF text:', error);
+          toast({
+            title: "PDF Processing Failed",
+            description: "Could not extract text from PDF. Please try a different file.",
+            variant: "destructive"
+          });
+        } finally {
+          setIsProcessingPDF(false);
+        }
       }
     } else {
       toast({
@@ -158,6 +200,15 @@ By signing below, both parties agree to be bound by the terms of this Lease Agre
   };
 
   const handleProcessDocument = () => {
+    if (isProcessingPDF) {
+      toast({
+        title: "Please Wait",
+        description: "PDF is still being processed.",
+        variant: "destructive"
+      });
+      return;
+    }
+    
     if (textInput.trim()) {
       onDocumentProcess(textInput, selectedFile?.name);
     } else {
@@ -226,11 +277,19 @@ By signing below, both parties agree to be bound by the terms of this Lease Agre
                   </p>
                   {selectedFile && (
                     <div className="mt-4 flex items-center justify-center gap-2 text-primary">
-                      <File className="w-4 h-4" />
-                      <span className="font-medium">{selectedFile.name}</span>
+                      {isProcessingPDF ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <File className="w-4 h-4" />
+                      )}
+                      <span className="font-medium">
+                        {selectedFile.name} 
+                        {isProcessingPDF && " - Processing..."}
+                      </span>
                       <Button 
                         variant="ghost" 
                         size="sm"
+                        disabled={isProcessingPDF}
                         onClick={(e) => {
                           e.stopPropagation();
                           setSelectedFile(null);
@@ -270,11 +329,20 @@ By signing below, both parties agree to be bound by the terms of this Lease Agre
             {/* Process Button */}
             <Button 
               onClick={handleProcessDocument}
-              disabled={!textInput.trim()}
+              disabled={!textInput.trim() || isProcessingPDF}
               className="w-full bg-primary hover:bg-primary/90 text-primary-foreground py-6 text-lg font-semibold"
             >
-              <Zap className="w-5 h-5 mr-2" />
-              Analyze Document
+              {isProcessingPDF ? (
+                <>
+                  <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                  Processing PDF...
+                </>
+              ) : (
+                <>
+                  <Zap className="w-5 h-5 mr-2" />
+                  Analyze Document
+                </>
+              )}
             </Button>
           </div>
 
