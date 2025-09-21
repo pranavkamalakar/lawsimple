@@ -6,6 +6,7 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/
 import { Badge } from "@/components/ui/badge";
 import { ArrowLeft, Download, Share, AlertTriangle, CheckCircle, Info, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 
 interface DocumentAnalyzerProps {
   content: string;
@@ -15,6 +16,7 @@ interface DocumentAnalyzerProps {
 
 interface AnalysisResult {
   summary: string;
+  documentType?: string;
   keyPoints: Array<{
     text: string;
     type: "important" | "critical" | "favorable";
@@ -26,6 +28,7 @@ interface AnalysisResult {
     simplified: string;
     risk: "low" | "medium" | "high";
   }>;
+  error?: string;
 }
 
 const DocumentAnalyzer = ({ content, fileName, onBack }: DocumentAnalyzerProps) => {
@@ -35,110 +38,95 @@ const DocumentAnalyzer = ({ content, fileName, onBack }: DocumentAnalyzerProps) 
   const [loadingMessage, setLoadingMessage] = useState("Initializing AI analysis...");
   const { toast } = useToast();
 
-  // Simulate AI analysis with realistic progress
+  // Real AI analysis with Gemini
   useEffect(() => {
-    const messages = [
-      "Initializing AI analysis...",
-      "Reading document structure...",
-      "Identifying legal clauses...",
-      "Analyzing contract terms...",
-      "Highlighting critical sections...",
-      "Generating plain English translations...",
-      "Finalizing analysis report..."
-    ];
+    const analyzeDocument = async () => {
+      const messages = [
+        "Initializing AI analysis...",
+        "Reading document structure...",
+        "Identifying legal clauses...",
+        "Analyzing contract terms...",
+        "Highlighting critical sections...",
+        "Generating plain English translations...",
+        "Finalizing analysis report..."
+      ];
 
-    let messageIndex = 0;
-    let currentProgress = 0;
+      let messageIndex = 0;
+      let currentProgress = 0;
 
-    const interval = setInterval(() => {
-      currentProgress += Math.random() * 15 + 5;
-      if (currentProgress > 100) currentProgress = 100;
-      
-      setProgress(currentProgress);
-      
-      if (messageIndex < messages.length - 1 && currentProgress > (messageIndex + 1) * (100 / messages.length)) {
-        messageIndex++;
-        setLoadingMessage(messages[messageIndex]);
-      }
+      const interval = setInterval(() => {
+        currentProgress += Math.random() * 10 + 3;
+        if (currentProgress > 95) currentProgress = 95;
+        
+        setProgress(currentProgress);
+        
+        if (messageIndex < messages.length - 1 && currentProgress > (messageIndex + 1) * (95 / messages.length)) {
+          messageIndex++;
+          setLoadingMessage(messages[messageIndex]);
+        }
+      }, 300);
 
-      if (currentProgress >= 100) {
+      try {
+        const { data, error } = await supabase.functions.invoke('analyze-document', {
+          body: { content, fileName }
+        });
+
         clearInterval(interval);
+        setProgress(100);
+
+        if (error) {
+          console.error('Analysis error:', error);
+          toast({
+            title: "Analysis Failed",
+            description: "Failed to analyze document. Please try again.",
+            variant: "destructive"
+          });
+          setAnalysis({
+            summary: "Analysis failed due to technical issues. Please try again.",
+            keyPoints: [],
+            clauses: [],
+            error: error.message
+          });
+        } else {
+          setAnalysis(data);
+          toast({
+            title: "Analysis Complete",
+            description: "Your document has been successfully analyzed."
+          });
+        }
+      } catch (error) {
+        clearInterval(interval);
+        console.error('Network error:', error);
+        toast({
+          title: "Connection Error",
+          description: "Failed to connect to analysis service. Please check your connection.",
+          variant: "destructive"
+        });
+        setAnalysis({
+          summary: "Connection error occurred. Please check your internet connection and try again.",
+          keyPoints: [],
+          clauses: [],
+          error: error instanceof Error ? error.message : 'Unknown error'
+        });
+      } finally {
+        setProgress(100);
         setTimeout(() => {
           setIsAnalyzing(false);
-          generateMockAnalysis();
         }, 500);
       }
-    }, 200);
-
-    return () => clearInterval(interval);
-  }, [content]);
-
-  const generateMockAnalysis = () => {
-    // Generate realistic analysis based on content
-    const mockAnalysis: AnalysisResult = {
-      summary: `This document is a ${getDocumentType(content)} containing ${content.split('.').length} clauses. The agreement establishes legal obligations between parties with several important terms that require attention. Key areas include payment terms, liability limitations, and termination conditions.`,
-      keyPoints: [
-        {
-          text: "Payment obligations and late fees are specified",
-          type: "important",
-          explanation: "The document clearly outlines when payments are due and what happens if they're late. This is important for budgeting and avoiding penalties."
-        },
-        {
-          text: "Limited liability clause may restrict your rights",
-          type: "critical", 
-          explanation: "This clause limits how much the other party has to pay if something goes wrong. This could be significant if there are major problems."
-        },
-        {
-          text: "Termination notice period is reasonable",
-          type: "favorable",
-          explanation: "The agreement gives adequate time to prepare for termination, which is beneficial for planning purposes."
-        }
-      ],
-      clauses: extractClauses(content)
     };
-    setAnalysis(mockAnalysis);
-  };
 
-  const getDocumentType = (content: string): string => {
+    analyzeDocument();
+  }, [content, fileName, toast]);
+
+  // Helper function to get document type from analysis or content
+  const getDocumentType = (): string => {
+    if (analysis?.documentType) return analysis.documentType;
     if (content.toLowerCase().includes("employment")) return "employment agreement";
     if (content.toLowerCase().includes("lease") || content.toLowerCase().includes("rental")) return "lease agreement";
     if (content.toLowerCase().includes("license")) return "license agreement";
     if (content.toLowerCase().includes("service")) return "service agreement";
     return "legal contract";
-  };
-
-  const extractClauses = (content: string): AnalysisResult['clauses'] => {
-    // Simple clause extraction - in real app this would use AI
-    const sections = content.split(/\d+\.\s+/).filter(section => section.trim().length > 50);
-    
-    return sections.slice(0, 5).map((section, index) => {
-      const title = section.split('\n')[0].trim() || `Clause ${index + 1}`;
-      const risk = Math.random() > 0.7 ? "high" : Math.random() > 0.4 ? "medium" : "low";
-      
-      return {
-        title: title.length > 50 ? title.substring(0, 50) + "..." : title,
-        original: section.trim(),
-        simplified: generateSimplified(section.trim()),
-        risk: risk as "low" | "medium" | "high"
-      };
-    });
-  };
-
-  const generateSimplified = (text: string): string => {
-    // Mock simplification - in real app this would use AI
-    if (text.toLowerCase().includes("whereas")) {
-      return "This section explains the background and reasons for the agreement.";
-    }
-    if (text.toLowerCase().includes("liability")) {
-      return "This limits how much money one party has to pay if something goes wrong.";
-    }
-    if (text.toLowerCase().includes("termination")) {
-      return "This explains how and when the agreement can be ended by either party.";
-    }
-    if (text.toLowerCase().includes("payment") || text.toLowerCase().includes("rent")) {
-      return "This section covers how much money needs to be paid and when.";
-    }
-    return "This clause establishes specific rights and obligations for the parties involved.";
   };
 
   const highlightText = (text: string) => {
@@ -176,6 +164,7 @@ const DocumentAnalyzer = ({ content, fileName, onBack }: DocumentAnalyzerProps) 
 LAWSIMPLE ANALYSIS REPORT
 ${fileName ? `Document: ${fileName}` : ''}
 Generated: ${new Date().toLocaleDateString()}
+Document Type: ${getDocumentType()}
 
 SUMMARY:
 ${analysis.summary}
