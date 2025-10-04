@@ -1,145 +1,205 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
-const geminiApiKey = Deno.env.get('GEMINI_API_KEY');
+// Use Lovable AI Gateway instead of calling providers directly
+// LOVABLE_API_KEY is auto-provisioned by Lovable AI
+const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
 
 const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+};
+
+type AnalysisResult = {
+  summary: string;
+  documentType?: string;
+  keyPoints: Array<{
+    text: string;
+    type: "important" | "critical" | "favorable";
+    explanation: string;
+  }>;
+  clauses: Array<{
+    title: string;
+    original: string;
+    simplified: string;
+    risk: "low" | "medium" | "high";
+  }>;
 };
 
 serve(async (req) => {
-  // Handle CORS preflight requests
-  if (req.method === 'OPTIONS') {
+  if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
+    if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
+
     const { content, fileName } = await req.json();
-
-    console.log('Analyzing document:', fileName, 'Content length:', content.length);
-
-    const prompt = `You are a legal document analysis expert. Analyze the following legal document and provide a detailed breakdown in JSON format.
-
-Document Content:
-${content}
-
-Please provide your analysis in this EXACT JSON structure:
-{
-  "summary": "A comprehensive summary of the document (2-3 sentences)",
-  "documentType": "The type of legal document (e.g., 'employment agreement', 'lease agreement', 'service contract')",
-  "keyPoints": [
-    {
-      "text": "Brief description of the key point",
-      "type": "important|critical|favorable",
-      "explanation": "Detailed explanation of why this point matters"
+    if (!content || typeof content !== "string" || content.trim().length < 20) {
+      return new Response(
+        JSON.stringify({
+          error: "No or insufficient document content provided.",
+          summary: "Provide a longer document to analyze.",
+          keyPoints: [],
+          clauses: [],
+        }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
     }
-  ],
-  "clauses": [
-    {
-      "title": "Title of the clause or section",
-      "original": "Original text from the document (first 200 characters)",
-      "simplified": "Plain English explanation of what this clause means",
-      "risk": "low|medium|high"
-    }
-  ]
-}
 
-Focus on:
-- Payment terms and obligations
-- Liability and risk allocation
-- Termination conditions
-- Important deadlines
-- Rights and responsibilities
-- Potential risks or red flags
+    console.log("Analyzing document via Lovable AI:", fileName ?? "(untitled)", "Length:", content.length);
 
-Provide 3-6 key points and 4-8 clauses. Make explanations clear and accessible to non-lawyers.`;
+    const systemPrompt =
+      "You are a legal document analysis expert. Analyze contracts precisely, explain clearly for non-lawyers, and avoid hallucinations.";
 
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${geminiApiKey}`, {
-      method: 'POST',
+    // Define tool for structured output
+    const analyzeTool = {
+      type: "function",
+      function: {
+        name: "analyze_document",
+        description: "Return structured analysis of a legal document",
+        parameters: {
+          type: "object",
+          properties: {
+            summary: { type: "string", description: "2-3 sentence summary" },
+            documentType: { type: "string", description: "Type of document" },
+            keyPoints: {
+              type: "array",
+              items: {
+                type: "object",
+                properties: {
+                  text: { type: "string" },
+                  type: { type: "string", enum: ["important", "critical", "favorable"] },
+                  explanation: { type: "string" },
+                },
+                required: ["text", "type", "explanation"],
+                additionalProperties: false,
+              },
+              minItems: 3,
+              maxItems: 6,
+            },
+            clauses: {
+              type: "array",
+              items: {
+                type: "object",
+                properties: {
+                  title: { type: "string" },
+                  original: { type: "string" },
+                  simplified: { type: "string" },
+                  risk: { type: "string", enum: ["low", "medium", "high"] },
+                },
+                required: ["title", "original", "simplified", "risk"],
+                additionalProperties: false,
+              },
+              minItems: 4,
+              maxItems: 8,
+            },
+          },
+          required: ["summary", "documentType", "keyPoints", "clauses"],
+          additionalProperties: false,
+        },
+      },
+    } as const;
+
+    const userPrompt = `Analyze the following legal document and return structured results via the analyze_document tool.\n\nFilename: ${
+      fileName ?? "(untitled)"
+    }\n\nFocus on: payment terms, liability/risk, termination, deadlines, rights/responsibilities, and red flags. Keep quotes to first 200 chars for each clause.\n\nDocument Content:\n${content}`;
+
+    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      method: "POST",
       headers: {
-        'Content-Type': 'application/json',
+        Authorization: `Bearer ${LOVABLE_API_KEY}`,
+        "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        contents: [{
-          parts: [{
-            text: prompt
-          }]
-        }],
-        generationConfig: {
-          temperature: 0.3,
-          topK: 40,
-          topP: 0.95,
-          maxOutputTokens: 2048,
-        }
+        model: "google/gemini-2.5-flash",
+        temperature: 0.3,
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: userPrompt },
+        ],
+        tools: [analyzeTool],
+        tool_choice: { type: "function", function: { name: "analyze_document" } },
       }),
     });
 
     if (!response.ok) {
-      const errorText = await response.text();
-      console.error('Gemini API error:', errorText);
-      throw new Error(`Gemini API error: ${response.status} ${errorText}`);
+      const text = await response.text();
+      console.error("AI gateway error:", response.status, text);
+      if (response.status === 429) {
+        return new Response(
+          JSON.stringify({ error: "Rate limits exceeded, please try again shortly.", summary: "", keyPoints: [], clauses: [] }),
+          { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        );
+      }
+      if (response.status === 402) {
+        return new Response(
+          JSON.stringify({ error: "Payment required for AI usage. Please add credits to your workspace.", summary: "", keyPoints: [], clauses: [] }),
+          { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        );
+      }
+      return new Response(
+        JSON.stringify({ error: "AI gateway error", details: text, summary: "", keyPoints: [], clauses: [] }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
     }
 
     const data = await response.json();
-    console.log('Gemini response:', data);
+    console.log("AI gateway response received");
 
-    if (!data.candidates || !data.candidates[0] || !data.candidates[0].content) {
-      throw new Error('Invalid response format from Gemini API');
-    }
-
-    const generatedText = data.candidates[0].content.parts[0].text;
-    
-    // Extract JSON from the response (remove any markdown formatting)
-    let jsonText = generatedText;
-    if (jsonText.includes('```json')) {
-      jsonText = jsonText.split('```json')[1].split('```')[0];
-    } else if (jsonText.includes('```')) {
-      jsonText = jsonText.split('```')[1].split('```')[0];
-    }
-
-    let analysisResult;
+    // OpenAI-compatible tool call parsing
+    let result: AnalysisResult | null = null;
     try {
-      analysisResult = JSON.parse(jsonText.trim());
-    } catch (parseError) {
-      console.error('JSON parse error:', parseError, 'Raw text:', jsonText);
-      // Fallback to a basic structure if JSON parsing fails
-      analysisResult = {
-        summary: "Document analysis completed successfully. The system has identified key legal terms and provisions that require attention.",
+      const choice = data?.choices?.[0];
+      const toolCalls = choice?.message?.tool_calls ?? choice?.message?.toolCalls ?? [];
+      if (toolCalls.length > 0) {
+        const call = toolCalls[0];
+        const argsStr: string = call?.function?.arguments ?? call?.function?.argumentsText ?? "{}";
+        result = JSON.parse(argsStr);
+      } else {
+        // Fallback: try to parse content as JSON (in case tool calling failed)
+        const contentText: string | undefined = choice?.message?.content;
+        if (contentText) {
+          // Strip code fences if present
+          let t = contentText.trim();
+          if (t.startsWith("```")) {
+            t = t.replace(/^```json?/i, "").replace(/```$/i, "").trim();
+          }
+          result = JSON.parse(t);
+        }
+      }
+    } catch (e) {
+      console.error("Parse error:", e);
+    }
+
+    if (!result) {
+      // Minimal safe fallback
+      result = {
+        summary: "Document analysis completed. Some fields may be simplified due to parsing fallback.",
         documentType: "legal document",
         keyPoints: [
-          {
-            text: "Document contains legal obligations and terms",
-            type: "important",
-            explanation: "This document establishes binding legal relationships between the parties involved."
-          }
+          { text: "Contains legal obligations and terms", type: "important", explanation: "The document sets binding responsibilities." },
         ],
         clauses: [
           {
             title: "General Provisions",
-            original: content.substring(0, 200) + "...",
-            simplified: "This section contains the main terms and conditions of the agreement.",
-            risk: "medium"
-          }
-        ]
+            original: content.slice(0, 200) + "...",
+            simplified: "Overview of primary terms and conditions.",
+            risk: "medium",
+          },
+        ],
       };
     }
 
-    console.log('Final analysis result:', analysisResult);
-
-    return new Response(JSON.stringify(analysisResult), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    return new Response(JSON.stringify(result), {
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (error) {
-    console.error('Error in analyze-document function:', error);
-    return new Response(JSON.stringify({ 
-      error: error.message,
-      summary: "Analysis failed due to technical issues. Please try again.",
-      keyPoints: [],
-      clauses: []
-    }), {
-      status: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
+    console.error("Error in analyze-document function:", error);
+    const msg = error instanceof Error ? error.message : "Unknown error";
+    return new Response(
+      JSON.stringify({ error: msg, summary: "Analysis failed due to technical issues. Please try again.", keyPoints: [], clauses: [] }),
+      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+    );
   }
 });
