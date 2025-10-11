@@ -19,8 +19,8 @@ const DocumentUploader = ({ onDocumentProcess, onBack }: DocumentUploaderProps) 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 
-  // Configure PDF.js worker
-  pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
+  // Configure PDF.js worker - using unpkg for reliability
+  pdfjsLib.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.mjs`;
 
   // Sample documents for quick demo
   const sampleDocuments = [
