@@ -2,9 +2,10 @@ import { useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
-import { Upload, FileText, X, File, Zap, Loader2 } from "lucide-react";
+import { Upload, FileText, X, File, Zap, Loader2, Scan } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import * as pdfjsLib from 'pdfjs-dist';
+import { createWorker } from 'tesseract.js';
 
 interface DocumentUploaderProps {
   onDocumentProcess: (content: string, fileName?: string) => void;
@@ -16,6 +17,8 @@ const DocumentUploader = ({ onDocumentProcess, onBack }: DocumentUploaderProps) 
   const [textInput, setTextInput] = useState("");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isProcessingPDF, setIsProcessingPDF] = useState(false);
+  const [isProcessingOCR, setIsProcessingOCR] = useState(false);
+  const [ocrProgress, setOcrProgress] = useState(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 
@@ -158,11 +161,40 @@ By signing below, both parties agree to be bound by the terms of this Lease Agre
     return textContent.trim();
   };
 
+  const extractTextFromImage = async (file: File): Promise<string> => {
+    setIsProcessingOCR(true);
+    setOcrProgress(0);
+    
+    const worker = await createWorker('eng', 1, {
+      logger: (m) => {
+        if (m.status === 'recognizing text') {
+          setOcrProgress(Math.round(m.progress * 100));
+        }
+      }
+    });
+    
+    try {
+      const { data: { text } } = await worker.recognize(file);
+      await worker.terminate();
+      return text;
+    } catch (error) {
+      await worker.terminate();
+      throw error;
+    } finally {
+      setIsProcessingOCR(false);
+      setOcrProgress(0);
+    }
+  };
+
   const handleFileSelect = async (file: File) => {
-    if (file.type === "application/pdf" || file.type === "text/plain") {
+    const isImage = file.type.startsWith("image/");
+    const isPDF = file.type === "application/pdf";
+    const isText = file.type === "text/plain";
+    
+    if (isImage || isPDF || isText) {
       setSelectedFile(file);
       
-      if (file.type === "text/plain") {
+      if (isText) {
         const reader = new FileReader();
         reader.onload = (e) => {
           if (e.target?.result) {
@@ -170,7 +202,7 @@ By signing below, both parties agree to be bound by the terms of this Lease Agre
           }
         };
         reader.readAsText(file);
-      } else if (file.type === "application/pdf") {
+      } else if (isPDF) {
         setIsProcessingPDF(true);
         try {
           const extractedText = await extractTextFromPDF(file);
@@ -189,21 +221,41 @@ By signing below, both parties agree to be bound by the terms of this Lease Agre
         } finally {
           setIsProcessingPDF(false);
         }
+      } else if (isImage) {
+        try {
+          toast({
+            title: "Processing Image",
+            description: "Running OCR to extract text...",
+          });
+          const extractedText = await extractTextFromImage(file);
+          setTextInput(extractedText);
+          toast({
+            title: "OCR Complete",
+            description: "Text successfully extracted from image.",
+          });
+        } catch (error) {
+          console.error('Error extracting image text:', error);
+          toast({
+            title: "OCR Failed",
+            description: "Could not extract text from image. Please try a different file.",
+            variant: "destructive"
+          });
+        }
       }
     } else {
       toast({
         title: "Unsupported File Type",
-        description: "Please upload a PDF or text file.",
+        description: "Please upload a PDF, image, or text file.",
         variant: "destructive"
       });
     }
   };
 
   const handleProcessDocument = () => {
-    if (isProcessingPDF) {
+    if (isProcessingPDF || isProcessingOCR) {
       toast({
         title: "Please Wait",
-        description: "PDF is still being processed.",
+        description: isProcessingPDF ? "PDF is still being processed." : "OCR is still processing the image.",
         variant: "destructive"
       });
       return;
@@ -268,14 +320,32 @@ By signing below, both parties agree to be bound by the terms of this Lease Agre
                   onDrop={handleDrop}
                   onClick={() => fileInputRef.current?.click()}
                 >
-                  <FileText className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+                  {isProcessingOCR ? (
+                    <Scan className="w-12 h-12 text-primary mx-auto mb-4 animate-pulse" />
+                  ) : (
+                    <FileText className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+                  )}
                   <p className="text-lg font-medium mb-2">
-                    Drop your PDF here or click to browse
+                    Drop your file here or click to browse
                   </p>
                   <p className="text-sm text-muted-foreground">
-                    Supports PDF and text files up to 10MB
+                    Supports PDF, images (JPG, PNG), and text files up to 10MB
                   </p>
-                  {selectedFile && (
+                  {isProcessingOCR && (
+                    <div className="mt-4 w-full max-w-xs mx-auto">
+                      <div className="flex items-center gap-2 mb-2">
+                        <Scan className="w-4 h-4 text-primary" />
+                        <span className="text-sm font-medium text-primary">Running OCR: {ocrProgress}%</span>
+                      </div>
+                      <div className="w-full bg-secondary rounded-full h-2">
+                        <div 
+                          className="bg-primary h-2 rounded-full transition-all duration-300"
+                          style={{ width: `${ocrProgress}%` }}
+                        />
+                      </div>
+                    </div>
+                  )}
+                  {selectedFile && !isProcessingOCR && (
                     <div className="mt-4 flex items-center justify-center gap-2 text-primary">
                       {isProcessingPDF ? (
                         <Loader2 className="w-4 h-4 animate-spin" />
@@ -304,7 +374,7 @@ By signing below, both parties agree to be bound by the terms of this Lease Agre
                 <input
                   ref={fileInputRef}
                   type="file"
-                  accept=".pdf,.txt"
+                  accept=".pdf,.txt,image/*"
                   onChange={(e) => e.target.files && handleFileSelect(e.target.files[0])}
                   className="hidden"
                 />
@@ -329,13 +399,18 @@ By signing below, both parties agree to be bound by the terms of this Lease Agre
             {/* Process Button */}
             <Button 
               onClick={handleProcessDocument}
-              disabled={!textInput.trim() || isProcessingPDF}
+              disabled={!textInput.trim() || isProcessingPDF || isProcessingOCR}
               className="w-full bg-primary hover:bg-primary/90 text-primary-foreground py-6 text-lg font-semibold"
             >
               {isProcessingPDF ? (
                 <>
                   <Loader2 className="w-5 h-5 mr-2 animate-spin" />
                   Processing PDF...
+                </>
+              ) : isProcessingOCR ? (
+                <>
+                  <Scan className="w-5 h-5 mr-2 animate-pulse" />
+                  Running OCR...
                 </>
               ) : (
                 <>
