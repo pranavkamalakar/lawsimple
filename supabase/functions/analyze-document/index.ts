@@ -34,7 +34,19 @@ serve(async (req) => {
   try {
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
 
-    const { content, fileName } = await req.json();
+    const { content, fileName, language = 'en' } = await req.json();
+    
+    const languageNames: Record<string, string> = {
+      en: 'English',
+      hi: 'Hindi',
+      mr: 'Marathi',
+      te: 'Telugu',
+      kn: 'Kannada',
+      ml: 'Malayalam'
+    };
+    
+    const targetLanguage = languageNames[language] || 'English';
+    
     if (!content || typeof content !== "string" || content.trim().length < 20) {
       return new Response(
         JSON.stringify({
@@ -49,8 +61,9 @@ serve(async (req) => {
 
     console.log("Analyzing document via Lovable AI:", fileName ?? "(untitled)", "Length:", content.length);
 
-    const systemPrompt =
-      "You are a legal document analysis expert. Analyze contracts precisely, explain clearly for non-lawyers, and avoid hallucinations.";
+    const systemPrompt = `You are a legal document analysis expert. Analyze contracts precisely, explain clearly for non-lawyers, and avoid hallucinations.
+
+CRITICAL: Provide ALL responses in ${targetLanguage} language. Every piece of text - summary, explanations, simplified clauses, key points - MUST be written in ${targetLanguage}. This is non-negotiable.`;
 
     // Define tool for structured output
     const analyzeTool = {
@@ -101,9 +114,16 @@ serve(async (req) => {
       },
     } as const;
 
-    const userPrompt = `Analyze the following legal document and return structured results via the analyze_document tool.\n\nFilename: ${
-      fileName ?? "(untitled)"
-    }\n\nFocus on: payment terms, liability/risk, termination, deadlines, rights/responsibilities, and red flags. Keep quotes to first 200 chars for each clause.\n\nDocument Content:\n${content}`;
+    const userPrompt = `Analyze the following legal document and return structured results via the analyze_document tool.
+
+IMPORTANT: ALL text in your response MUST be in ${targetLanguage} language - including summary, keyPoints text and explanation, clauses titles and simplified text. Do not use English unless the selected language is English.
+
+Filename: ${fileName ?? "(untitled)"}
+
+Focus on: payment terms, liability/risk, termination, deadlines, rights/responsibilities, and red flags. Keep quotes to first 200 chars for each clause.
+
+Document Content:
+${content}`;
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",

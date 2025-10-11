@@ -7,11 +7,13 @@ import { Badge } from "@/components/ui/badge";
 import { ArrowLeft, Download, Share, AlertTriangle, CheckCircle, Info, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import { Language } from "@/contexts/LanguageContext";
 
 interface DocumentAnalyzerProps {
   content: string;
   fileName?: string;
   onBack: () => void;
+  language: Language;
 }
 
 interface AnalysisResult {
@@ -31,7 +33,7 @@ interface AnalysisResult {
   error?: string;
 }
 
-const DocumentAnalyzer = ({ content, fileName, onBack }: DocumentAnalyzerProps) => {
+const DocumentAnalyzer = ({ content, fileName, onBack, language }: DocumentAnalyzerProps) => {
   const [isAnalyzing, setIsAnalyzing] = useState(true);
   const [progress, setProgress] = useState(0);
   const [analysis, setAnalysis] = useState<AnalysisResult | null>(null);
@@ -68,7 +70,7 @@ const DocumentAnalyzer = ({ content, fileName, onBack }: DocumentAnalyzerProps) 
 
       try {
         const { data, error } = await supabase.functions.invoke('analyze-document', {
-          body: { content, fileName }
+          body: { content, fileName, language }
         });
 
         clearInterval(interval);
