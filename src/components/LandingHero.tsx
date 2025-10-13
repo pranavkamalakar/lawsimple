@@ -1,5 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { FileText, Upload, Shield, Zap } from "lucide-react";
+import { ThemeLanguageToggle } from "@/components/ThemeLanguageToggle";
 
 interface LandingHeroProps {
   onGetStarted: () => void;
@@ -26,6 +27,7 @@ const LandingHero = ({ onGetStarted }: LandingHeroProps) => {
 
   return (
     <div className="min-h-screen hero-gradient flex items-center justify-center">
+      <ThemeLanguageToggle />
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center">
           {/* Main Heading */}

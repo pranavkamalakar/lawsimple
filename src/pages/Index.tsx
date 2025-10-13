@@ -2,10 +2,13 @@ import { useState } from "react";
 import LandingHero from "@/components/LandingHero";
 import DocumentUploader from "@/components/DocumentUploader";
 import DocumentAnalyzer from "@/components/DocumentAnalyzer";
+import { ThemeLanguageToggle } from "@/components/ThemeLanguageToggle";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 type AppState = "landing" | "upload" | "analyze";
 
 const Index = () => {
+  const { language } = useLanguage();
   const [currentState, setCurrentState] = useState<AppState>("landing");
   const [documentContent, setDocumentContent] = useState<string>("");
   const [documentFileName, setDocumentFileName] = useState<string>("");
@@ -32,20 +35,27 @@ const Index = () => {
 
   if (currentState === "analyze") {
     return (
-      <DocumentAnalyzer 
-        content={documentContent}
-        fileName={documentFileName}
-        onBack={handleBackToUpload}
-      />
+      <>
+        <ThemeLanguageToggle />
+        <DocumentAnalyzer 
+          content={documentContent}
+          fileName={documentFileName}
+          onBack={handleBackToUpload}
+          language={language}
+        />
+      </>
     );
   }
 
   if (currentState === "upload") {
     return (
-      <DocumentUploader 
-        onDocumentProcess={handleDocumentProcess}
-        onBack={handleBackToHome}
-      />
+      <>
+        <ThemeLanguageToggle />
+        <DocumentUploader 
+          onDocumentProcess={handleDocumentProcess}
+          onBack={handleBackToHome}
+        />
+      </>
     );
   }
 

@@ -12,6 +12,7 @@ interface DocumentAnalyzerProps {
   content: string;
   fileName?: string;
   onBack: () => void;
+  language?: string;
 }
 
 interface AnalysisResult {
@@ -31,7 +32,7 @@ interface AnalysisResult {
   error?: string;
 }
 
-const DocumentAnalyzer = ({ content, fileName, onBack }: DocumentAnalyzerProps) => {
+const DocumentAnalyzer = ({ content, fileName, onBack, language = "en" }: DocumentAnalyzerProps) => {
   const [isAnalyzing, setIsAnalyzing] = useState(true);
   const [progress, setProgress] = useState(0);
   const [analysis, setAnalysis] = useState<AnalysisResult | null>(null);
@@ -68,7 +69,7 @@ const DocumentAnalyzer = ({ content, fileName, onBack }: DocumentAnalyzerProps) 
 
       try {
         const { data, error } = await supabase.functions.invoke('analyze-document', {
-          body: { content, fileName }
+          body: { content, fileName, language }
         });
 
         clearInterval(interval);

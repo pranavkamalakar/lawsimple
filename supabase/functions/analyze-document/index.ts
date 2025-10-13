@@ -34,7 +34,7 @@ serve(async (req) => {
   try {
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
 
-    const { content, fileName } = await req.json();
+    const { content, fileName, language = "en" } = await req.json();
     if (!content || typeof content !== "string" || content.trim().length < 20) {
       return new Response(
         JSON.stringify({
@@ -49,8 +49,20 @@ serve(async (req) => {
 
     console.log("Analyzing document via Lovable AI:", fileName ?? "(untitled)", "Length:", content.length);
 
-    const systemPrompt =
-      "You are a legal document analysis expert. Analyze contracts precisely, explain clearly for non-lawyers, and avoid hallucinations.";
+    const languageNames: Record<string, string> = {
+      en: "English",
+      hi: "Hindi",
+      mr: "Marathi",
+      te: "Telugu",
+      kn: "Kannada",
+      ml: "Malayalam"
+    };
+
+    const languageInstruction = language !== "en" 
+      ? `IMPORTANT: Provide ALL explanations, summaries, and simplified text in ${languageNames[language] || "English"}. Only keep original quoted text in its original language.` 
+      : "";
+
+    const systemPrompt = `You are a legal document analysis expert. Analyze contracts precisely, explain clearly for non-lawyers, and avoid hallucinations. ${languageInstruction}`;
 
     // Define tool for structured output
     const analyzeTool = {
