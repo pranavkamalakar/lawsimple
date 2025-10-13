@@ -1,21 +1,11 @@
 import { Button } from "@/components/ui/button";
-import { FileText, Upload, Shield, Zap, Languages } from "lucide-react";
-import { useLanguage, languageNames, Language } from "@/contexts/LanguageContext";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { FileText, Upload, Shield, Zap } from "lucide-react";
 
 interface LandingHeroProps {
   onGetStarted: () => void;
 }
 
 const LandingHero = ({ onGetStarted }: LandingHeroProps) => {
-  const { language, setLanguage, getLanguageName } = useLanguage();
-  
   const features = [
     {
       icon: <FileText className="w-6 h-6" />,
@@ -38,22 +28,6 @@ const LandingHero = ({ onGetStarted }: LandingHeroProps) => {
     <div className="min-h-screen hero-gradient flex items-center justify-center">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center">
-          {/* Language Selector */}
-          <div className="flex justify-end mb-4">
-            <Select value={language} onValueChange={(value) => setLanguage(value as Language)}>
-              <SelectTrigger className="w-[180px] bg-primary-foreground/10 border-primary-foreground/20 text-primary-foreground">
-                <Languages className="w-4 h-4 mr-2" />
-                <SelectValue placeholder="Select Language" />
-              </SelectTrigger>
-              <SelectContent>
-                {Object.entries(languageNames).map(([code, name]) => (
-                  <SelectItem key={code} value={code}>
-                    {name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
           {/* Main Heading */}
           <div className="mb-8">
             <h1 className="text-5xl md:text-7xl font-bold text-primary-foreground mb-6 leading-tight">

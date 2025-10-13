@@ -329,7 +329,7 @@ By signing below, both parties agree to be bound by the terms of this Lease Agre
                     Drop your file here or click to browse
                   </p>
                   <p className="text-sm text-muted-foreground">
-                    Supports PDF, images (PNG, JPG, JPEG, GIF, BMP, WEBP, TIFF), and text files up to 10MB
+                    Supports PDF, images (JPG, PNG), and text files up to 10MB
                   </p>
                   {isProcessingOCR && (
                     <div className="mt-4 w-full max-w-xs mx-auto">
@@ -374,7 +374,7 @@ By signing below, both parties agree to be bound by the terms of this Lease Agre
                 <input
                   ref={fileInputRef}
                   type="file"
-                  accept=".pdf,.txt,.png,.jpg,.jpeg,.gif,.bmp,.webp,.tiff,image/*"
+                  accept=".pdf,.txt,image/*"
                   onChange={(e) => e.target.files && handleFileSelect(e.target.files[0])}
                   className="hidden"
                 />
