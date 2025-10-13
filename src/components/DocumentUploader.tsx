@@ -261,8 +261,10 @@ By signing below, both parties agree to be bound by the terms of this Lease Agre
       return;
     }
     
-    if (textInput.trim()) {
-      onDocumentProcess(textInput, selectedFile?.name);
+    // Allow processing even if text is minimal - let AI handle it
+    if (selectedFile || textInput.trim()) {
+      const contentToProcess = textInput.trim() || "No text content detected in document.";
+      onDocumentProcess(contentToProcess, selectedFile?.name);
     } else {
       toast({
         title: "No Content Found",
@@ -381,25 +383,27 @@ By signing below, both parties agree to be bound by the terms of this Lease Agre
               </CardContent>
             </Card>
 
-            {/* Text Input */}
-            <Card className="shadow-card">
-              <CardHeader>
-                <CardTitle>Or Paste Text Directly</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <Textarea
-                  placeholder="Paste your legal document text here..."
-                  value={textInput}
-                  onChange={(e) => setTextInput(e.target.value)}
-                  className="min-h-[300px] resize-none"
-                />
-              </CardContent>
-            </Card>
+            {/* Text Input - Only show if no file is selected */}
+            {!selectedFile && (
+              <Card className="shadow-card">
+                <CardHeader>
+                  <CardTitle>Or Paste Text Directly</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <Textarea
+                    placeholder="Paste your legal document text here..."
+                    value={textInput}
+                    onChange={(e) => setTextInput(e.target.value)}
+                    className="min-h-[300px] resize-none"
+                  />
+                </CardContent>
+              </Card>
+            )}
 
             {/* Process Button */}
             <Button 
               onClick={handleProcessDocument}
-              disabled={!textInput.trim() || isProcessingPDF || isProcessingOCR}
+              disabled={(!selectedFile && !textInput.trim()) || isProcessingPDF || isProcessingOCR}
               className="w-full bg-primary hover:bg-primary/90 text-primary-foreground py-6 text-lg font-semibold"
             >
               {isProcessingPDF ? (

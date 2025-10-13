@@ -251,27 +251,7 @@ Simplified: ${clause.simplified}
       </div>
 
       <div className="max-w-7xl mx-auto px-4 py-8">
-        <div className="split-view">
-          {/* Original Document */}
-          <div className="space-y-6">
-            <Card className="shadow-card">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  Original Document
-                  <Badge variant="outline" className="ml-2">
-                    {content.split(' ').length} words
-                  </Badge>
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div 
-                  className="prose prose-sm max-w-none whitespace-pre-wrap text-sm leading-relaxed max-h-[600px] overflow-y-auto p-4 bg-muted/30 rounded border"
-                  dangerouslySetInnerHTML={{ __html: highlightText(content) }}
-                />
-              </CardContent>
-            </Card>
-          </div>
-
+        <div className="max-w-4xl mx-auto">
           {/* Analysis Results */}
           <div className="space-y-6">
             {/* Summary */}
