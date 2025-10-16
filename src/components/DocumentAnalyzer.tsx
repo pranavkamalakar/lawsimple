@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, Download, Share, AlertTriangle, CheckCircle, Info, Loader2 } from "lucide-react";
+import { ArrowLeft, Download, Share, AlertTriangle, CheckCircle, Info, Loader2, Volume2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { LanguageFloatingButton } from "@/components/LanguageFloatingButton";
@@ -38,6 +38,7 @@ const DocumentAnalyzer = ({ content, fileName, onBack, language = "en" }: Docume
   const [progress, setProgress] = useState(0);
   const [analysis, setAnalysis] = useState<AnalysisResult | null>(null);
   const [loadingMessage, setLoadingMessage] = useState("Initializing AI analysis...");
+  const [playingAudio, setPlayingAudio] = useState<string | null>(null);
   const { toast } = useToast();
 
   // Real AI analysis with Gemini
@@ -203,6 +204,44 @@ Simplified: ${clause.simplified}
     // Re-analyze will be triggered by useEffect when language changes
   };
 
+  const handleTextToSpeech = async (text: string, id: string) => {
+    if (playingAudio === id) {
+      setPlayingAudio(null);
+      return;
+    }
+
+    try {
+      setPlayingAudio(id);
+      
+      const { data, error } = await supabase.functions.invoke('text-to-speech', {
+        body: { text, voice: 'Sarah' }
+      });
+
+      if (error) throw error;
+
+      const audio = new Audio(`data:audio/mpeg;base64,${data.audioContent}`);
+      audio.onended = () => setPlayingAudio(null);
+      audio.onerror = () => {
+        setPlayingAudio(null);
+        toast({
+          title: "Playback Error",
+          description: "Failed to play audio",
+          variant: "destructive"
+        });
+      };
+      
+      await audio.play();
+    } catch (error) {
+      console.error('TTS error:', error);
+      setPlayingAudio(null);
+      toast({
+        title: "Text-to-Speech Error",
+        description: "Failed to generate audio",
+        variant: "destructive"
+      });
+    }
+  };
+
   if (isAnalyzing) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
@@ -265,8 +304,16 @@ Simplified: ${clause.simplified}
           <div className="space-y-6">
             {/* Summary */}
             <Card className="shadow-card">
-              <CardHeader>
+              <CardHeader className="flex flex-row items-center justify-between">
                 <CardTitle>Executive Summary</CardTitle>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => handleTextToSpeech(analysis?.summary || '', 'summary')}
+                  disabled={!analysis?.summary}
+                >
+                  <Volume2 className={`w-5 h-5 ${playingAudio === 'summary' ? 'text-primary animate-pulse' : ''}`} />
+                </Button>
               </CardHeader>
               <CardContent>
                 <p className="text-muted-foreground leading-relaxed">
@@ -319,7 +366,17 @@ Simplified: ${clause.simplified}
                       </AccordionTrigger>
                       <AccordionContent className="space-y-4">
                         <div>
-                          <h4 className="font-medium text-sm mb-2 text-muted-foreground">Plain English:</h4>
+                          <div className="flex items-center justify-between mb-2">
+                            <h4 className="font-medium text-sm text-muted-foreground">Plain English:</h4>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8"
+                              onClick={() => handleTextToSpeech(clause.simplified, `clause-${index}`)}
+                            >
+                              <Volume2 className={`w-4 h-4 ${playingAudio === `clause-${index}` ? 'text-primary animate-pulse' : ''}`} />
+                            </Button>
+                          </div>
                           <p className="text-sm bg-accent/50 p-3 rounded border-l-4 border-primary">
                             {clause.simplified}
                           </p>
