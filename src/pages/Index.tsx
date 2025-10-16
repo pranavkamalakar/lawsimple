@@ -35,15 +35,12 @@ const Index = () => {
 
   if (currentState === "analyze") {
     return (
-      <>
-        <ThemeLanguageToggle />
-        <DocumentAnalyzer 
-          content={documentContent}
-          fileName={documentFileName}
-          onBack={handleBackToUpload}
-          language={language}
-        />
-      </>
+      <DocumentAnalyzer 
+        content={documentContent}
+        fileName={documentFileName}
+        onBack={handleBackToUpload}
+        language={language}
+      />
     );
   }
 

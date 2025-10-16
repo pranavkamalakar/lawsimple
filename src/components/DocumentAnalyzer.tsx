@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { ArrowLeft, Download, Share, AlertTriangle, CheckCircle, Info, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import { LanguageFloatingButton } from "@/components/LanguageFloatingButton";
 
 interface DocumentAnalyzerProps {
   content: string;
@@ -42,6 +43,7 @@ const DocumentAnalyzer = ({ content, fileName, onBack, language = "en" }: Docume
   // Real AI analysis with Gemini
   useEffect(() => {
     const analyzeDocument = async () => {
+      setIsAnalyzing(true);
       const messages = [
         "Initializing AI analysis...",
         "Reading document structure...",
@@ -118,7 +120,7 @@ const DocumentAnalyzer = ({ content, fileName, onBack, language = "en" }: Docume
     };
 
     analyzeDocument();
-  }, [content, fileName, toast]);
+  }, [content, fileName, language, toast]);
 
   // Helper function to get document type from analysis or content
   const getDocumentType = (): string => {
@@ -197,15 +199,20 @@ Simplified: ${clause.simplified}
     });
   };
 
+  const handleLanguageChange = () => {
+    // Re-analyze will be triggered by useEffect when language changes
+  };
+
   if (isAnalyzing) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
-        <Card className="w-full max-w-md shadow-legal">
+        <LanguageFloatingButton onLanguageChange={handleLanguageChange} />
+        <Card className="w-full max-w-md shadow-legal bg-card">
           <CardHeader className="text-center">
             <div className="flex justify-center mb-4">
               <Loader2 className="w-12 h-12 text-primary animate-spin" />
             </div>
-            <CardTitle className="text-xl">Analyzing Document</CardTitle>
+            <CardTitle className="text-xl text-card-foreground">Analyzing Document</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <Progress value={progress} className="h-3" />
@@ -223,17 +230,18 @@ Simplified: ${clause.simplified}
 
   return (
     <div className="min-h-screen bg-background">
+      <LanguageFloatingButton onLanguageChange={handleLanguageChange} />
       {/* Header */}
       <div className="border-b bg-card shadow-sm">
         <div className="max-w-7xl mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
-              <Button variant="ghost" onClick={onBack}>
+              <Button variant="ghost" onClick={onBack} className="text-card-foreground">
                 <ArrowLeft className="w-4 h-4 mr-2" />
                 Back
               </Button>
               <div>
-                <h1 className="text-2xl font-bold">Document Analysis</h1>
+                <h1 className="text-2xl font-bold text-card-foreground">Document Analysis</h1>
                 {fileName && <p className="text-sm text-muted-foreground">{fileName}</p>}
               </div>
             </div>

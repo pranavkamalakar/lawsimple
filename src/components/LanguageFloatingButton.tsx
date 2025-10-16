@@ -1,4 +1,4 @@
-import { Moon, Sun, Languages } from "lucide-react";
+import { Languages } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -6,18 +6,30 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { useTheme } from "@/contexts/ThemeContext";
 import { useLanguage, languages, Language } from "@/contexts/LanguageContext";
 
-export const ThemeLanguageToggle = () => {
-  const { theme, toggleTheme } = useTheme();
+interface LanguageFloatingButtonProps {
+  onLanguageChange?: () => void;
+}
+
+export const LanguageFloatingButton = ({ onLanguageChange }: LanguageFloatingButtonProps) => {
   const { language, setLanguage } = useLanguage();
 
+  const handleLanguageChange = (lang: Language) => {
+    setLanguage(lang);
+    if (onLanguageChange) {
+      onLanguageChange();
+    }
+  };
+
   return (
-    <div className="fixed top-4 right-4 flex gap-2 z-50">
+    <div className="fixed bottom-6 right-6 z-50">
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button variant="outline" className="bg-background/80 backdrop-blur-sm gap-2">
+          <Button 
+            size="lg" 
+            className="rounded-full shadow-lg hover:shadow-xl transition-shadow gap-2"
+          >
             <Languages className="h-5 w-5" />
             <span>{languages[language]}</span>
           </Button>
@@ -26,7 +38,7 @@ export const ThemeLanguageToggle = () => {
           {Object.entries(languages).map(([code, name]) => (
             <DropdownMenuItem
               key={code}
-              onClick={() => setLanguage(code as Language)}
+              onClick={() => handleLanguageChange(code as Language)}
               className={language === code ? "bg-accent" : ""}
             >
               {name}
@@ -34,19 +46,6 @@ export const ThemeLanguageToggle = () => {
           ))}
         </DropdownMenuContent>
       </DropdownMenu>
-
-      <Button 
-        variant="outline" 
-        size="icon"
-        onClick={toggleTheme}
-        className="bg-background/80 backdrop-blur-sm"
-      >
-        {theme === "light" ? (
-          <Moon className="h-5 w-5" />
-        ) : (
-          <Sun className="h-5 w-5" />
-        )}
-      </Button>
     </div>
   );
 };
